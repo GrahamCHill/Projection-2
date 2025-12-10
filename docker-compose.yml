@@ -23,6 +23,7 @@ services:
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.entrypoints=web"
 
+
   ######################################################################
   ## FRONTEND — React + NGINX
   ######################################################################
@@ -35,6 +36,7 @@ services:
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     depends_on:
       - backend-python
+
 
   ######################################################################
   ## PYTHON API — Main Backend
@@ -51,6 +53,7 @@ services:
       - db
       - minio
 
+
   ######################################################################
   ## GO SERVICE — Internal only (no public exposure)
   ######################################################################
@@ -64,6 +67,7 @@ services:
     depends_on:
       - db
 
+
   ######################################################################
   ## POSTGRESQL — Startup SQL + audit tables
   ######################################################################
@@ -75,6 +79,7 @@ services:
       - ./db/00-init.sql:/docker-entrypoint-initdb.d/00-init.sql
       - ./db/01-audit.sql:/docker-entrypoint-initdb.d/01-audit.sql
       - ./db/02-diagrams.sql:/docker-entrypoint-initdb.d/02-diagrams.sql
+
 
   ######################################################################
   ## LOKI — Central Log Storage
@@ -90,6 +95,7 @@ services:
       - loki_data:/loki
       - loki_wal:/wal
 
+
   ######################################################################
   ## VECTOR — Collect logs from all Docker containers
   ######################################################################
@@ -102,6 +108,7 @@ services:
     depends_on:
       - loki
 
+
   ######################################################################
   ## GRAFANA — Dashboards for logs
   ######################################################################
@@ -111,6 +118,7 @@ services:
       - "3001:3000"
     depends_on:
       - loki
+
 
   ######################################################################
   ## Mermaid — For System Architecture Diagrams (iframe only)
@@ -131,6 +139,7 @@ services:
       - db
     labels:
       - "traefik.enable=false"
+
 
   ######################################################################
   ## Draw.io — diagrams.net (internal only)
@@ -171,10 +180,79 @@ services:
       - "traefik.enable=false"
 
 
+  ######################################################################
+  ## TLDRAW — collaborative whiteboard (internal)
+  ## Note: tldraw is usually added as a frontend app. If you prefer,
+  ## build the client into ./infra/tldraw and serve with nginx.
+  ######################################################################
+  tldraw:
+    image: ratneo/tldraw:latest
+    restart: unless-stopped
+    expose:
+      - "3210"
+    environment:
+      - NODE_ENV=production
+      - TZ=UTC
+    volumes:
+      - tldraw_data:/home/node/.tldraw
+    labels:
+      - "traefik.enable=false"
+    # host mapping for local debugging (optional)
+    ports:
+      - "3003:3210"
+
+
+  ######################################################################
+  ## DBDIAGRAM (OSS) — dbdiagram.io open-source alternative (internal)
+  ## This is an OSS implementation (github.com/mengjp810418/dbdiagram).
+  ## There are multiple community images; adjust the image if you prefer to build from source.
+  ######################################################################
+  dbdiagram:
+    image: zshmeta/dbdiagram:latest
+    restart: unless-stopped
+    expose:
+      - "3210"
+    environment:
+      - TZ=UTC
+      # optional: point to your Postgres if the app needs it
+      # - DATABASE_URL=postgres://postgres:devpassword@db:5432/appdb
+    volumes:
+      - dbdiagram_data:/app/data
+    labels:
+      - "traefik.enable=false"
+    ports:
+      - "8085:3210"   # host 8085 -> container 3210
+
+
+  ######################################################################
+  ## GITEA — Git hosting (with Git LFS support)
+  ######################################################################
+  gitea:
+    image: gitea/gitea:latest
+    restart: unless-stopped
+    env_file: ./infra/gitea/.env
+    volumes:
+      - gitea_data:/data
+      - ./infra/gitea/app.ini:/data/gitea/conf/app.ini                      # persistent Gitea app data (config, repo metadata)
+    depends_on:
+      - db
+      - minio
+    labels:
+      - "traefik.enable=false"                  # change to true + labels if you want Traefik to expose it
+    ports:
+      - "3000:3000"                             # optional host port for direct web UI access (dev)
+      - "2222:22"                               # optional SSH access (git+ssh)
+
+
+
 
 volumes:
   db_data:
   loki_data:
   loki_wal:
   minio_data:
+  tldraw_data:
+  dbdiagram_data:
+  gitea_data: 
+
 
