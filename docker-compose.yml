@@ -35,6 +35,7 @@ services:
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     depends_on:
       - backend-python
+      - mermaid-editor
 
   ######################################################################
   ## PYTHON API — Main Backend
@@ -49,6 +50,7 @@ services:
       - "traefik.http.services.api.loadbalancer.server.port=8000"
     depends_on:
       - db
+      - minio
 
   ######################################################################
   ## GO SERVICE — Internal only (no public exposure)
@@ -73,6 +75,7 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./db/00-init.sql:/docker-entrypoint-initdb.d/00-init.sql
       - ./db/01-audit.sql:/docker-entrypoint-initdb.d/01-audit.sql
+      - ./db/02-diagrams.sql:/docker-entrypoint-initdb.d/02-diagrams.sql
 
   ######################################################################
   ## LOKI — Central Log Storage
@@ -111,7 +114,7 @@ services:
       - loki
 
   ######################################################################
-  ## Mermaid — For System Architecture Diagrams
+  ## Mermaid — For System Architecture Diagrams (iframe only)
   ######################################################################
   mermaid-editor:
     build:
@@ -121,14 +124,26 @@ services:
     image: projection2-mermaid-editor:local
     restart: unless-stopped
     ports:
-      - "8081:80"
+      - "3333:80"
     environment:
       - NODE_ENV=production
+
+  ######################################################################
+  ## MinIO — S3-compatible object storage for diagram files
+  ######################################################################
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.mermaid.rule=Host(`mermaid.test`)"
-      - "traefik.http.routers.mermaid.entrypoints=web"
-      - "traefik.http.services.mermaid.loadbalancer.server.port=80"
+      - "traefik.enable=false"
 
 
 
@@ -136,4 +151,5 @@ volumes:
   db_data:
   loki_data:
   loki_wal:
+  minio_data:
 

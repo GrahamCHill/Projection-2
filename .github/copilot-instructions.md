@@ -113,13 +113,23 @@ Every request logs to `audit_log` table via middleware:
   - Add panels by querying logs: e.g., `{service="backend-python"} | json`
   - Annotations: Track audit events via `action="http_request"` filter
 
-### Mermaid Editor
-- Optional service for system architecture diagrams
-- Runs on dedicated `mermaid.test` hostname (routed via Traefik)
-- Available at `http://localhost:8081` (direct) or `http://mermaid.test` (via Traefik)
-- Built from `infra/mermaid-editor/` (clones mermaid-live-editor, builds with npm)
-- Build arg `BUILD_REF` defaults to `main`; change to a git tag for pinned versions
-- Can be embedded in other pages via iframe: `<iframe src="http://mermaid.test"></iframe>`
+### Mermaid Editor & Diagram Storage
+- Mermaid Live Editor runs on `mermaid.test`, embedded in frontend via iframe
+- **DiagramEditor component** (`frontend/src/DiagramEditor.jsx`): Full-featured diagram manager
+  - Sidebar: Lists saved diagrams from PostgreSQL
+  - Main area: Embedded Mermaid iframe for editing
+  - PostMessage API: Parent window communicates with Mermaid iframe
+- **Storage architecture**:
+  - Diagram content → MinIO S3 storage (`.mmd` files)
+  - Metadata → PostgreSQL `diagrams` table (title, description, s3_key, tags, timestamps)
+- **Backend endpoints** (`backend-python/main.py`):
+  - `POST /api/diagrams`: Save new diagram (uploads to S3, creates DB record)
+  - `GET /api/diagrams`: List all diagrams with pagination
+  - `GET /api/diagrams/{id}`: Get diagram metadata with presigned S3 URL
+  - `GET /api/diagrams/{id}/content`: Fetch raw diagram content from S3
+  - `DELETE /api/diagrams/{id}`: Remove diagram from both S3 and database
+- **MinIO service**: S3-compatible storage on port 9000 (API), 9001 (console)
+- **S3 module** (`backend-python/s3_storage.py`): Handles all MinIO operations
 
 ## Testing & Quality Assurance
 
