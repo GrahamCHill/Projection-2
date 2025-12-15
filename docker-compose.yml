@@ -42,7 +42,7 @@ services:
   ## PYTHON API — Main Backend
   ######################################################################
   backend-python:
-    build: ./backend-python
+    build: ./backend-microservices/backend-python
     env_file: .env
     labels:
       - "traefik.enable=true"
@@ -52,13 +52,15 @@ services:
     depends_on:
       - db
       - minio
+      - qdrant
+      - ollama
 
 
   ######################################################################
   ## GO SERVICE — Internal only (no public exposure)
   ######################################################################
   backend-go:
-    build: ./backend-go
+    build: ./backend-microservices/backend-go
     env_file: .env
     expose:
       - "9000"
@@ -79,6 +81,67 @@ services:
       - ./db/00-init.sql:/docker-entrypoint-initdb.d/00-init.sql
       - ./db/01-audit.sql:/docker-entrypoint-initdb.d/01-audit.sql
       - ./db/02-diagrams.sql:/docker-entrypoint-initdb.d/02-diagrams.sql
+
+
+  ######################################################################
+  ## 🔍 QDRANT — Vector Database for Embeddings
+  ######################################################################
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    environment:
+      QDRANT__STORAGE__PATH: "/qdrant/storage"
+    ports:
+      - "6333:6333"       # HTTP API
+      - "6334:6334"       # gRPC API
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    labels:
+      - "traefik.enable=false"
+    # (Optional) expose through Traefik using a subdomain:
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.qdrant.rule=Host(`vector.test`)"
+    #   - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
+
+  
+  ######################################################################
+  ## OLLAMA — Local LLM Inference Engine
+  ######################################################################
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/pull-models.sh"]
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./infra/ollama/pull-models.sh:/pull-models.sh    # stores downloaded models
+    ports:
+      - "11434:11434"                  # API port
+    environment:
+      - OLLAMA_KEEP_ALIVE=300          # keep models warm for 5 minutes
+    labels:
+      - "traefik.enable=false"         # not exposed to public internet
+
+    ## Nvidia accelerated version, default off
+    # ollama:
+    # image: ollama/ollama:latest
+    # container_name: ollama
+    # restart: unless-stopped
+    # runtime: nvidia
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+    # entrypoint: ["/bin/sh", "/pull-models.sh"]
+    # volumes:
+    #   - ollama_data:/root/.ollama
+    #   - ./infra/ollama/pull-models.sh:/pull-models.sh    # stores downloaded models
+    # ports:
+    #   - "11434:11434"
 
 
   ######################################################################
@@ -105,17 +168,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./infra/vector:/etc/vector
-    depends_on:
-      - loki
-
-
-  ######################################################################
-  ## GRAFANA — Dashboards for logs
-  ######################################################################
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3001:3000"
     depends_on:
       - loki
 
@@ -224,27 +276,6 @@ services:
       - "8085:3210"   # host 8085 -> container 3210
 
 
-  ######################################################################
-  ## GITEA — Git hosting (with Git LFS support)
-  ######################################################################
-  gitea:
-    image: gitea/gitea:latest
-    restart: unless-stopped
-    env_file: ./infra/gitea/.env
-    volumes:
-      - gitea_data:/data
-      - ./infra/gitea/app.ini:/data/gitea/conf/app.ini                      # persistent Gitea app data (config, repo metadata)
-    depends_on:
-      - db
-      - minio
-    labels:
-      - "traefik.enable=false"                  # change to true + labels if you want Traefik to expose it
-    ports:
-      - "3000:3000"                             # optional host port for direct web UI access (dev)
-      - "2222:22"                               # optional SSH access (git+ssh)
-
-
-
 
 volumes:
   db_data:
@@ -253,6 +284,5 @@ volumes:
   minio_data:
   tldraw_data:
   dbdiagram_data:
-  gitea_data: 
-
-
+  qdrant_storage:  
+  ollama_data:   
