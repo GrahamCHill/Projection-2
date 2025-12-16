@@ -1,5 +1,6 @@
-from app.llm.groq_client import GroqClient
-from app.llm.ollama_client import OllamaClient
+from semantic.llm.groq_client import GroqClient
+from semantic.llm.ollama_client import OllamaClient
+
 import re
 
 class HybridLLMRouter:

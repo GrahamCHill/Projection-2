@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import diagrams, chat, health
-from app.audit.middleware import audit_middleware
+
+from api import diagrams, chat, health
+from audit.middleware import audit_middleware
 
 app = FastAPI()
 

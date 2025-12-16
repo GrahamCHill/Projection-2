@@ -42,7 +42,7 @@ services:
   ## PYTHON API — Main Backend
   ######################################################################
   backend-python:
-    build: ./core/backend-python
+    build: ./backend-microservices/core/backend-python
     env_file: .env
     labels:
       - "traefik.enable=true"
@@ -60,7 +60,7 @@ services:
   ## GO SERVICE — Internal only (no public exposure)
   ######################################################################
   backend-go:
-    build: ./core/backend-go
+    build: ./backend-microservices/core/backend-go
     env_file: .env
     expose:
       - "9000"
