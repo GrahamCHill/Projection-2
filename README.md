@@ -74,7 +74,7 @@ Without the hosts file entry:
 - Traefik returns 404 page not found.
 
 
-## Notes on Ollama
+### Notes on Ollama
 
 On macOS/Linux systems you may have to run 
 ```
