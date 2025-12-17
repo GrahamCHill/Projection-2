@@ -23,10 +23,7 @@ At its core, Continuum treats a project as a root aggregate. All functionalityâ€
 - Module schemas are initialized at startup to avoid Docker init race conditions
 - UUIDs are used for all core identifiers to support distributed deployment
 
-
-```shell
-docker compose -f docker-compose.dev.yml --env-file .env.dev up --build
-```
+## Additional Notes
 
 Development
 ```shell
@@ -35,7 +32,7 @@ docker compose --env-file .env up --build -d
 
 To test the prod version go to [app.test](http://app.test)
 
-To make this work you will need to add the followinf domains to your hosts file
+To make this work you will need to add the following domains to your hosts file
 ```
 app.test
 api.test
@@ -77,7 +74,7 @@ Without the hosts file entry:
 - Traefik returns 404 page not found.
 
 
-## Notes
+## Notes on Ollama
 
 On macOS/Linux systems you may have to run 
 ```
